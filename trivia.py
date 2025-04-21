@@ -41,3 +41,57 @@ def quiz(q):
 
 if __name__ == "__main__":
     quiz(next_question())
+# top of trivia.py
+import argparse
+DEFAULT_API = "https://opentdb.com/api.php"
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Daily trivia CLI")
+    p.add_argument("-c", "--category", type=int, help="OpenTDB category ID")
+    p.add_argument("-d", "--difficulty", choices=["easy", "medium", "hard"])
+    p.add_argument("-n", "--amount", type=int, default=1, help="# of questions")
+    p.add_argument("--no-cache", action="store_true", help="Ignore local cache")
+    return p.parse_args()
+DEFAULT_API = "https://opentdb.com/api.php"
+
+def fetch_fresh_batch(args):
+    """
+    Pull a batch of questions from OpenTDB based on user flags.
+    We stick to multiple‑choice ('type=multiple') so the quiz UI stays simple.
+    """
+    params = {
+        "amount": args.amount,
+        "type":   "multiple",
+    }
+    if args.category:
+        params["category"] = args.category
+    if args.difficulty:
+        params["difficulty"] = args.difficulty
+
+    r = requests.get(DEFAULT_API, params=params, timeout=5)
+    r.raise_for_status()
+    return r.json()["results"]
+CACHE = pathlib.Path(".cache.json")
+
+def next_question(args):
+    # blow away cache if user asked for fresh pull
+    if args.no_cache and CACHE.exists():
+        CACHE.unlink()
+
+    if CACHE.exists():
+        buf = json.loads(CACHE.read_text())
+    else:
+        buf = fetch_fresh_batch(args)
+
+    if not buf:                 # Cache exhausted
+        buf = fetch_fresh_batch(args)
+
+    q = buf.pop(0)
+    CACHE.write_text(json.dumps(buf, indent=2))
+    return q
+if __name__ == "__main__":
+    args = parse_args()
+    quiz(next_question(args))
+# inside next_question(args):
+else:
+    buf = fetch_fresh_batch(args)   # ← args must be forwarded here
