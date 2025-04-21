@@ -41,4 +41,3 @@ def quiz(q):
 
 if __name__ == "__main__":
     quiz(next_question())
-1
